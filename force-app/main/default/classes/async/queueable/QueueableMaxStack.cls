@@ -4,12 +4,13 @@
  * Testing Async Options
  */
 
-public with sharing class QueueableMaxStack implements Queueable, Database.AllowsCallouts {
+public with sharing class QueueableMaxStack implements Queueable, Database.AllowsCallouts, System.Finalizer {
     private static final String URL = 'https://api.github.com/';
 
     public void execute(QueueableContext context) {
 
         System.debug('Callouts count: ' + AsyncInfo.getCurrentQueueableStackDepth());
+        System.attachFinalizer(this);
 
         HttpRequest request = new HttpRequest();
         request.setEndpoint(URL);
@@ -36,5 +37,11 @@ public with sharing class QueueableMaxStack implements Queueable, Database.Allow
 
         options.minimumQueueableDelayInMinutes = 1;
         System.enqueueJob(new QueueableMaxStack(), options);
+    }
+
+    public void execute(FinalizerContext context) {
+        if (context.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
+            QueueableMaxStack.executeQueueable();
+        }
     }
 }
